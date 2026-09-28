@@ -40,13 +40,14 @@ services:
 
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+
       - "traefik.http.routers.ticket.rule=Host(`test.yocorp.my.id`)"
       - "traefik.http.routers.ticket.entrypoints=websecure"
       - "traefik.http.routers.ticket.tls=true"
       - "traefik.http.routers.ticket.tls.certresolver=cloudflare"
 
       - "traefik.http.routers.ticket.middlewares=ticket-vpn"
-
       - "traefik.http.middlewares.ticket-vpn.ipallowlist.sourcerange=10.20.0.0/24"
 
       - "traefik.http.routers.ticket.service=ticket"
