@@ -40,15 +40,16 @@ services:
 
     labels:
       - "traefik.enable=true"
-
       - "traefik.http.routers.ticket.rule=Host(`test.yocorp.my.id`)"
       - "traefik.http.routers.ticket.entrypoints=websecure"
       - "traefik.http.routers.ticket.tls=true"
+      - "traefik.http.routers.ticket.tls.certresolver=cloudflare"
 
       - "traefik.http.routers.ticket.middlewares=ticket-vpn"
 
-      - "traefik.http.routers.ticket.service=ticket"
+      - "traefik.http.middlewares.ticket-vpn.ipallowlist.sourcerange=10.20.0.10"
 
+      - "traefik.http.routers.ticket.service=ticket"
       - "traefik.http.services.ticket.loadbalancer.server.port=8080"
 
 networks:
