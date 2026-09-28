@@ -2,26 +2,59 @@ services:
   redis:
     image: redis:8-alpine
     container_name: tiket-redis
-    ports:
-      - "6379:6379"
     restart: unless-stopped
+
+    networks:
+      - ticket-internal
 
   api:
     image: ghcr.io/${IMAGE_REPO}:${IMAGE_TAG}
+
     container_name: tiket-api
+
     env_file:
       - /home/yohanesdev/tiketapi/.env
+
     environment:
-      - REDIS_ADDR=redis:6379
-    ports:
-      - "8080:8080"
+      REDIS_ADDR: redis:6379
+
+    expose:
+      - "8080"
+
     depends_on:
       redis:
         condition: service_started
+
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/health"]
       interval: 10s
       timeout: 5s
       retries: 3
       start_period: 5s
+
     restart: unless-stopped
+
+    networks:
+      - ticket-internal
+      - traefik-public
+
+    labels:
+      - "traefik.enable=true"
+
+      - "traefik.http.routers.ticket.rule=Host(`test.yocorp.my.id`)"
+      - "traefik.http.routers.ticket.entrypoints=websecure"
+      - "traefik.http.routers.ticket.tls=true"
+
+      - "traefik.http.routers.ticket.middlewares=ticket-vpn"
+
+      - "traefik.http.middlewares.ticket-vpn.ipallowlist.sourcerange=10.8.0.0/24"
+
+      - "traefik.http.routers.ticket.service=ticket"
+
+      - "traefik.http.services.ticket.loadbalancer.server.port=8080"
+
+networks:
+  ticket-internal:
+
+  traefik-public:
+    external: true
