@@ -47,8 +47,6 @@ services:
 
       - "traefik.http.routers.ticket.middlewares=ticket-vpn"
 
-      - "traefik.http.middlewares.ticket-vpn.ipallowlist.sourcerange=10.8.0.0/24"
-
       - "traefik.http.routers.ticket.service=ticket"
 
       - "traefik.http.services.ticket.loadbalancer.server.port=8080"
