@@ -107,13 +107,11 @@ jobs:
         run: |
           set -e
 
-          echo "Repository:"
-          pwd
+          echo "======================================"
+          echo "Starting staging deployment"
+          echo "======================================"
 
-          echo "Checking docker-compose.yml:"
           test -f docker-compose.yml
-
-          echo "Checking server .env:"
           test -f /home/yohanesdev/tiketapi/.env
 
           echo "$GHCR_TOKEN" | docker login ghcr.io \
@@ -123,28 +121,94 @@ jobs:
           export IMAGE_REPO
           export IMAGE_TAG
 
-          echo "Deploying:"
+          echo ""
+          echo "Image:"
           echo "ghcr.io/${IMAGE_REPO}:${IMAGE_TAG}"
 
-          docker compose --env-file /home/yohanesdev/tiketapi/.env pull
+          # ================================================
+          # STOP OLD CONTAINERS
+          # ================================================
+          echo ""
+          echo "Stopping old containers..."
+
+          docker compose \
+            --env-file /home/yohanesdev/tiketapi/.env \
+            down
+
+          # ================================================
+          # PULL NEW IMAGE
+          # ================================================
+          echo ""
+          echo "Pulling new image..."
+
+          docker compose \
+            --env-file /home/yohanesdev/tiketapi/.env \
+            pull
+
+          # ================================================
+          # START NEW CONTAINERS
+          # ================================================
+          echo ""
+          echo "Starting new containers..."
 
           docker compose \
             --env-file /home/yohanesdev/tiketapi/.env \
             up -d --remove-orphans
 
+          # ================================================
+          # STATUS
+          # ================================================
           echo ""
           echo "Container status:"
+
           docker compose \
             --env-file /home/yohanesdev/tiketapi/.env \
             ps
 
-          sleep 5
+          # ================================================
+          # HEALTH CHECK
+          # ================================================
+          echo ""
+          echo "Waiting for tiket-api health check..."
+
+          for i in {1..30}; do
+
+            STATUS=$(docker inspect \
+              --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}no-healthcheck{{end}}' \
+              tiket-api)
+
+            echo "Attempt $i/30: $STATUS"
+
+            if [ "$STATUS" = "healthy" ]; then
+              echo ""
+              echo "======================================"
+              echo "Deploy OK"
+              echo "======================================"
+
+              exit 0
+            fi
+
+            if [ "$STATUS" = "unhealthy" ]; then
+              echo ""
+              echo "Health check failed"
+
+              echo ""
+              echo "Container logs:"
+
+              docker logs --tail 100 tiket-api
+
+              exit 1
+            fi
+
+            sleep 2
+          done
 
           echo ""
-          echo "Health check:"
-
-          curl --fail --silent --show-error \
-            http://localhost:8080/health
+          echo "Health check timeout"
 
           echo ""
-          echo "Deploy OK"
+          echo "Container logs:"
+
+          docker logs --tail 100 tiket-api
+
+          exit 1
